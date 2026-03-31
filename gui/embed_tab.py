@@ -31,8 +31,18 @@ class EmbedTab(ttk.Frame):
     def _build_ui(self):
         pad = {'padx': 6, 'pady': 3}
 
-        # Cover video
         row = 0
+        ttk.Label(self, text="Video Format:").grid(row=row, column=0, sticky='w', **pad)
+        fmt_frame = ttk.Frame(self)
+        fmt_frame.grid(row=row, column=1, sticky='w', **pad)
+        self.video_format = tk.StringVar(value="avi")
+        ttk.Radiobutton(fmt_frame, text="AVI", variable=self.video_format, value="avi",
+                        command=self._on_format_change).pack(side='left', padx=4)
+        ttk.Radiobutton(fmt_frame, text="MP4", variable=self.video_format, value="mp4",
+                        command=self._on_format_change).pack(side='left', padx=4)
+
+        # Cover video
+        row += 1
         ttk.Label(self, text="Cover Video:").grid(row=row, column=0, sticky='w', **pad)
         ttk.Entry(self, textvariable=self.cover_path, width=50).grid(row=row, column=1, sticky='ew', **pad)
         ttk.Button(self, text="Browse", command=self._browse_cover).grid(row=row, column=2, **pad)
@@ -64,9 +74,10 @@ class EmbedTab(ttk.Frame):
         # Scheme
         row += 1
         ttk.Label(self, text="LSB Scheme:").grid(row=row, column=0, sticky='w', **pad)
-        ttk.Combobox(self, textvariable=self.scheme,
+        self.scheme_combo = ttk.Combobox(self, textvariable=self.scheme,
                      values=["3-3-2", "4-2-2", "2-3-3"],
-                     state='readonly', width=10).grid(row=row, column=1, sticky='w', **pad)
+                     state='readonly', width=10)
+        self.scheme_combo.grid(row=row, column=1, sticky='w', **pad)
 
         # Encryption
         row += 1
@@ -82,10 +93,12 @@ class EmbedTab(ttk.Frame):
         ttk.Label(self, text="Insert Mode:").grid(row=row, column=0, sticky='w', **pad)
         mode_frame = ttk.Frame(self)
         mode_frame.grid(row=row, column=1, sticky='w', **pad)
-        ttk.Radiobutton(mode_frame, text="Sequential", variable=self.insert_mode, value="sequential",
-                        command=self._toggle_random).pack(side='left', padx=4)
-        ttk.Radiobutton(mode_frame, text="Random", variable=self.insert_mode, value="random",
-                        command=self._toggle_random).pack(side='left', padx=4)
+        self.seq_radio = ttk.Radiobutton(mode_frame, text="Sequential", variable=self.insert_mode, value="sequential",
+                        command=self._toggle_random)
+        self.seq_radio.pack(side='left', padx=4)
+        self.rand_radio = ttk.Radiobutton(mode_frame, text="Random", variable=self.insert_mode, value="random",
+                        command=self._toggle_random)
+        self.rand_radio.pack(side='left', padx=4)
 
         row += 1
         self.skey_label = ttk.Label(self, text="Stego-Key:")
@@ -128,10 +141,24 @@ class EmbedTab(ttk.Frame):
 
         self.columnconfigure(1, weight=1)
         self._toggle_msg_type()
+        self._on_format_change()
+
+    def _on_format_change(self):
+        if self.video_format.get() == "mp4":
+            self.scheme_combo.config(state='disabled')
+            self.seq_radio.config(state='disabled')
+            self.rand_radio.config(state='disabled')
+            self.skey_entry.config(state='disabled')
+        else:
+            self.scheme_combo.config(state='readonly')
+            self.seq_radio.config(state='normal')
+            self.rand_radio.config(state='normal')
+            self._toggle_random()
 
     def _browse_cover(self):
+        ext = self.video_format.get()
         path = filedialog.askopenfilename(
-            filetypes=[("Video Files", "*.avi *.mp4"), ("AVI", "*.avi"), ("MP4", "*.mp4")])
+            filetypes=[(ext.upper(), f"*.{ext}")])
         if path:
             self.cover_path.set(path)
 
@@ -141,13 +168,10 @@ class EmbedTab(ttk.Frame):
             self.file_path.set(path)
 
     def _browse_output(self):
-        cover = self.cover_path.get()
-        cover_ext = os.path.splitext(cover)[1].lower() if cover else '.avi'
-        default_ext = cover_ext if cover_ext in ('.avi', '.mp4') else '.avi'
-        ft = [("AVI", "*.avi"), ("MP4", "*.mp4")]
+        ext = self.video_format.get()
         path = filedialog.asksaveasfilename(
-            defaultextension=default_ext,
-            filetypes=ft)
+            defaultextension=f".{ext}",
+            filetypes=[(ext.upper(), f"*.{ext}")])
         if path:
             self.output_name.set(path)
 
@@ -180,7 +204,7 @@ class EmbedTab(ttk.Frame):
             messagebox.showwarning("Warning", "Select a cover video first")
             return
         try:
-            is_mp4 = os.path.splitext(cover)[1].lower() == '.mp4'
+            is_mp4 = self.video_format.get() == 'mp4'
             cap = get_capacity(cover, self.scheme.get())
             if is_mp4:
                 msg = (f"Max capacity: {cap:,} bytes ({cap/1024:.1f} KB)\n"

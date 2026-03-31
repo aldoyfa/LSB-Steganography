@@ -22,8 +22,18 @@ class ExtractTab(ttk.Frame):
 
     def _build_ui(self):
         pad = {'padx': 6, 'pady': 3}
-
+        
         row = 0
+        ttk.Label(self, text="Video Format:").grid(row=row, column=0, sticky='w', **pad)
+        fmt_frame = ttk.Frame(self)
+        fmt_frame.grid(row=row, column=1, sticky='w', **pad)
+        self.video_format = tk.StringVar(value="avi")
+        ttk.Radiobutton(fmt_frame, text="AVI", variable=self.video_format, value="avi",
+                        command=self._on_format_change).pack(side='left', padx=4)
+        ttk.Radiobutton(fmt_frame, text="MP4", variable=self.video_format, value="mp4",
+                        command=self._on_format_change).pack(side='left', padx=4)
+
+        row += 1
         ttk.Label(self, text="Stego Video:").grid(row=row, column=0, sticky='w', **pad)
         ttk.Entry(self, textvariable=self.stego_path, width=50).grid(row=row, column=1, sticky='ew', **pad)
         ttk.Button(self, text="Browse", command=self._browse_stego).grid(row=row, column=2, **pad)
@@ -34,7 +44,8 @@ class ExtractTab(ttk.Frame):
 
         row += 1
         ttk.Label(self, text="Stego-Key (if random):").grid(row=row, column=0, sticky='w', **pad)
-        ttk.Entry(self, textvariable=self.stego_key, width=30).grid(row=row, column=1, sticky='w', **pad)
+        self.skey_entry = ttk.Entry(self, textvariable=self.stego_key, width=30)
+        self.skey_entry.grid(row=row, column=1, sticky='w', **pad)
 
         row += 1
         self.extract_btn = ttk.Button(self, text="Extract", command=self._start_extract)
@@ -72,10 +83,18 @@ class ExtractTab(ttk.Frame):
 
         self.columnconfigure(1, weight=1)
         self.rowconfigure(row - 2, weight=1)
+        self._on_format_change()
+
+    def _on_format_change(self):
+        if self.video_format.get() == "mp4":
+            self.skey_entry.config(state='disabled')
+        else:
+            self.skey_entry.config(state='normal')
 
     def _browse_stego(self):
+        ext = self.video_format.get()
         path = filedialog.askopenfilename(
-            filetypes=[("Video Files", "*.avi *.mp4"), ("AVI", "*.avi"), ("MP4", "*.mp4")])
+            filetypes=[(ext.upper(), f"*.{ext}")])
         if path:
             self.stego_path.set(path)
 

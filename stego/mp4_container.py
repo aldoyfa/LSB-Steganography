@@ -1,7 +1,6 @@
 import struct
 from stego.utils import bytes_to_bits, bits_to_bytes
 
-
 def find_mdat_block(data: bytes) -> tuple:
     pos = 0
     while pos < len(data) - 8:

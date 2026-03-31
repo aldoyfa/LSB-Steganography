@@ -282,4 +282,3 @@ def extract(stego_path, a51_key=None, stego_key=None):
         payload_raw = a51_decrypt(payload_raw, a51_key)
 
     return payload_raw, hdr['is_file'], hdr['filename']
-
