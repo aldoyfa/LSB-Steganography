@@ -8,6 +8,10 @@ from stego.utils import (bytes_to_bits, bits_to_bytes, parse_scheme,
 from stego.a51 import encrypt as a51_encrypt, decrypt as a51_decrypt
 
 def get_capacity(video_path, scheme="3-3-2"):
+    if _detect_format(video_path) == 'mp4':
+        from stego.mp4_container import get_capacity as _mp4_cap
+        return _mp4_cap(video_path)
+
     r_bits, g_bits, b_bits = parse_scheme(scheme)
     bpp = r_bits + g_bits + b_bits
 
@@ -25,7 +29,7 @@ def get_capacity(video_path, scheme="3-3-2"):
     cap.release()
 
     total_bits = total_pixels * bpp
-    return total_bits // 8 
+    return total_bits // 8
 
 
 def _get_pixel_order(w, h, use_random, stego_key, frame_idx):
@@ -118,6 +122,24 @@ def _get_writer(out_path, fps, w, h):
 def embed(video_path, out_path, payload_bytes, scheme, is_file, filename,
           use_encryption, key, use_random, stego_key, progress_cb=None):
 
+    if _detect_format(video_path) == 'mp4':
+        from stego.mp4_container import embed_mp4
+
+        if use_encryption and key:
+            enc_payload = a51_encrypt(payload_bytes, key)
+        else:
+            enc_payload = payload_bytes
+            use_encryption = False
+
+        if progress_cb:
+            progress_cb(0, 1)
+        embed_mp4(video_path, out_path, enc_payload,
+                  is_file, filename if is_file else "",
+                  use_encryption, use_random)
+        if progress_cb:
+            progress_cb(1, 1)
+        return 0.0, float('inf'), [], []
+
     if use_encryption and key:
         enc_payload = a51_encrypt(payload_bytes, key)
     else:
@@ -176,6 +198,15 @@ def embed(video_path, out_path, payload_bytes, scheme, is_file, filename,
 
 
 def extract(stego_path, a51_key=None, stego_key=None):
+    if _detect_format(stego_path) == 'mp4':
+        from stego.mp4_container import extract_mp4
+        payload, is_file, filename, is_encrypted = extract_mp4(stego_path)
+        if is_encrypted:
+            if not a51_key:
+                raise ValueError("Payload is encrypted but no A5/1 key provided")
+            payload = a51_decrypt(payload, a51_key)
+        return payload, is_file, filename
+
     cap = cv2.VideoCapture(stego_path)
     if not cap.isOpened():
         raise IOError(f"Can't open stego video: {stego_path}")

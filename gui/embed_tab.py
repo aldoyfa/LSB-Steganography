@@ -139,9 +139,13 @@ class EmbedTab(ttk.Frame):
             self.file_path.set(path)
 
     def _browse_output(self):
+        cover = self.cover_path.get()
+        cover_ext = os.path.splitext(cover)[1].lower() if cover else '.avi'
+        default_ext = cover_ext if cover_ext in ('.avi', '.mp4') else '.avi'
+        ft = [("AVI", "*.avi"), ("MP4", "*.mp4")]
         path = filedialog.asksaveasfilename(
-            defaultextension=".avi",
-            filetypes=[("AVI", "*.avi"), ("MP4", "*.mp4")])
+            defaultextension=default_ext,
+            filetypes=ft)
         if path:
             self.output_name.set(path)
 
@@ -174,8 +178,13 @@ class EmbedTab(ttk.Frame):
             messagebox.showwarning("Warning", "Select a cover video first")
             return
         try:
+            is_mp4 = os.path.splitext(cover)[1].lower() == '.mp4'
             cap = get_capacity(cover, self.scheme.get())
-            msg = f"Max capacity: {cap:,} bytes ({cap/1024:.1f} KB)"
+            if is_mp4:
+                msg = (f"Max capacity: {cap:,} bytes ({cap/1024:.1f} KB)\n"
+                       "Mode: MP4 container (parity encoding in mdat)")
+            else:
+                msg = f"Max capacity: {cap:,} bytes ({cap/1024:.1f} KB)"
 
             payload_size = self._get_payload_size()
             if payload_size is not None:
@@ -269,8 +278,13 @@ class EmbedTab(ttk.Frame):
         self.hist_btn.config(state='normal')
         self.progress['value'] = 100
         self.status_var.set("Embedding complete!")
-        psnr_str = f"{psnr:.2f}" if psnr != float('inf') else "∞"
-        self.result_var.set(f"Avg MSE: {mse:.4f}  |  Avg PSNR: {psnr_str} dB")
+        if mse == 0.0 and psnr == float('inf'):
+            self.result_var.set(
+                "MSE: 0.0  |  PSNR: ∞ dB  "
+                "(MP4 container mode (frames unmodified))")
+        else:
+            psnr_str = f"{psnr:.2f}" if psnr != float('inf') else "∞"
+            self.result_var.set(f"Avg MSE: {mse:.4f}  |  Avg PSNR: {psnr_str} dB")
 
     def _embed_error(self, msg):
         self.embed_btn.config(state='normal')
